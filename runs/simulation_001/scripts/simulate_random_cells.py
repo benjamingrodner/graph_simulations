@@ -101,7 +101,8 @@ def get_rod_kernels(half_cell_length, half_cell_width, theta_list):
 ##################################################################################
 def main():
     parser = argparse.ArgumentParser('Digital filter using two color colocalization.')
-    parser.add_argument('-ns', '--num_simulations', dest = 'num_simulations', type=int, default=1, help='Output filename containing plots')
+    # parser.add_argument('-ns', '--num_simulations', dest = 'num_simulations', type=int, default=1, help='Output filename containing plots')
+    parser.add_argument('seg_names', type=str, nargs = '+', help='Output filename containing plots')
     parser.add_argument('-nc', '--num_cells', dest = 'num_cells', type=int, default=200, help='Output filename containing plots')
     # parser.add_argument('-cr', '--cell_radius', dest = 'cell_radius', type=int, default=50, help='Output filename containing plots')
     parser.add_argument('-cl', '--half_cell_length', dest = 'half_cell_length', type=int, default=100, help='Output filename containing plots')
@@ -113,7 +114,7 @@ def main():
 
     args = parser.parse_args()
 
-    for simulation_number in range(1,args.num_simulations + 1):
+    for seg_name in args.seg_names:
         # Initialize image
         row_size = int(np.round((args.num_cells)**(1/2)))
         dimension = int(row_size * (args.spacer + 1) + args.spacer)
@@ -190,10 +191,10 @@ def main():
         image_rgb = color.label2rgb(image, bg_label=0, bg_color=(0,0,0))
         plt.imshow(image_rgb)
         if args.save == 'T':
-            output_numpy_filename = '{}/image_{}{}'.format(args.output_folder, simulation_number, args.output_extension)
+            output_numpy_filename = seg_name + args.output_extension
             np.save(output_numpy_filename, image)
             png_extension = re.sub('.npy','.png',args.output_extension)
-            output_png_filename = '{}/image_{}{}'.format(args.output_folder, simulation_number, png_extension)
+            output_png_filename = seg_name + png_extension
             plt.savefig(output_png_filename, bbox_inches = 'tight', transparent = True)
         else:
             plt.show()
