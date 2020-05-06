@@ -194,7 +194,7 @@ def main():
             np.save(output_numpy_filename, image)
             png_extension = re.sub('.npy','.png',args.output_extension)
             output_png_filename = '{}/image_{}{}'.format(args.output_folder, simulation_number, png_extension)
-            plt.savefig(output_png_filename)
+            plt.savefig(output_png_filename, bbox_inches = 'tight', transparent = True)
         else:
             plt.show()
         plt.close()
