@@ -2,13 +2,14 @@ import numpy as np
 import os
 from skimage import color
 import matplotlib.pyplot as plt
-import javabridge
-import bioformats
+# import javabridge
+# import bioformats
 import random
 import argparse
 from math import pi
+import re
 
-javabridge.start_vm(class_path=bioformats.JARS)
+# javabridge.start_vm(class_path=bioformats.JARS)
 
 ##################################################################################
 # Functions
@@ -100,55 +101,106 @@ def get_rod_kernels(half_cell_length, half_cell_width, theta_list):
 ##################################################################################
 def main():
     parser = argparse.ArgumentParser('Digital filter using two color colocalization.')
+    parser.add_argument('-ns', '--num_simulations', dest = 'num_simulations', type=int, default=1, help='Output filename containing plots')
     parser.add_argument('-nc', '--num_cells', dest = 'num_cells', type=int, default=200, help='Output filename containing plots')
-    parser.add_argument('-nt', '--num_taxa', dest = 'num_taxa', type=int, default=2, help='Output filename containing plots')
-    parser.add_argument('-cr', '--cell_radius', dest = 'cell_radius', type=int, default=50, help='Output filename containing plots')
+    # parser.add_argument('-cr', '--cell_radius', dest = 'cell_radius', type=int, default=50, help='Output filename containing plots')
     parser.add_argument('-cl', '--half_cell_length', dest = 'half_cell_length', type=int, default=100, help='Output filename containing plots')
-    parser.add_argument('-cw', '--half_cell_width', dest = 'half_cell_width', type=int, default=20, help='Output filename containing plots')
+    parser.add_argument('-cw', '--half_cell_width', dest = 'half_cell_width', type=int, default=40, help='Output filename containing plots')
     parser.add_argument('-sp', '--spacer', dest = 'spacer', type=int, default= 200, help='Output filename containing plots')
+    parser.add_argument('-s', '--save', dest = 'save', type=str, default= 'T', help='Output filename containing plots')
+    parser.add_argument('-of', '--output_folder', dest = 'output_folder', type=str, default= 'T', help='Output filename containing plots')
+    parser.add_argument('-oext', '--output_extension', dest = 'output_extension', type=str, help='Output filename containing plots')
 
     args = parser.parse_args()
 
-    # Initialize image
-    row_size = int(np.round((args.num_cells)**(1/2)))
-    dimension = int(row_size * (2*args.spacer + 1))
-    image_dimensions = [dimension]*2
-    image = np.zeros(image_dimensions)
+    for simulation_number in range(1,args.num_simulations + 1):
+        # Initialize image
+        row_size = int(np.round((args.num_cells)**(1/2)))
+        dimension = int(row_size * (args.spacer + 1) + args.spacer)
+        # dimension = int(row_size * (2*args.spacer + 1))
+        image_dimensions = [dimension]*2
+        image = np.zeros(image_dimensions)
 
-    # Rods
-    # Input theta values in range [-pi/2, pi/2]
-    theta_list = np.arange(-pi/2, pi/2, pi/8)
-    kernel_list = get_rod_kernels(args.half_cell_length, args.half_cell_width, theta_list)
-    # # Circles
-    # r = args.cell_radius
-    # kernel = np.zeros([2*r+1]*2)
-    # for ki in range(2*r+1):
-    #     for kj in range(2*r+1):
-    #         if (ki - r)**2 + (kj - r)**2 <= r**2:
-    #             kernel[kj,ki] = 1.
+        # Rods
+        # Input theta values in range [-pi/2, pi/2]
+        theta_list = np.arange(-pi/2, pi/2, pi/8)
+        kernel_list = get_rod_kernels(args.half_cell_length, args.half_cell_width, theta_list)
+        # # Circles
+        # r = args.cell_radius
+        # kernel = np.zeros([2*r+1]*2)
+        # for ki in range(2*r+1):
+        #     for kj in range(2*r+1):
+        #         if (ki - r)**2 + (kj - r)**2 <= r**2:
+        #             kernel[kj,ki] = 1.
 
-    # Add evenly spaced cells with random IDs and random orientations
-    k = 1
-    for i in range(1, row_size + 1):
-        for j in range(1, row_size + 1):
-            xi = (2*args.spacer + 1)*i - args.spacer
-            yj = (2*args.spacer + 1)*j - args.spacer
-            rnd = random.randint(0, len(theta_list))
-            kernel = kernel_list[rnd]
-            image[yj - r:yj + r + 1, xi - r:xi + r + 1] = kernel*k
-            # cell_id = random.randint(1, args.num_taxa)
-            # for xr in np.arange(xi - r, xi + r + 1):
-            #     for yr in np.arange(yj - r, yj + r + 1):
-            #         if (xi - xr)**2 + (yj - yr)**2 <= r**2:
-            #             image[yr,xr] = k
-            k += 1
-    image_rgb = color.label2rgb(image, bg_label=0, bg_color=(0,0,0))
-    plt.imshow(image_rgb)
-    plt.show()
-    plt.close()
+        # Add randomly spaced cells with IDs and random orientations
+        r = args.half_cell_length
+        k = 1
+        print('image.shape',image.shape)
+        # Randomly placed cells
+        for c in range(args.num_cells):
+            xi = random.randint(r ,dimension - r - 1)
+            yj = random.randint(r, dimension - r - 1)
+            krnd = random.randint(0, len(theta_list)-1)
+            kernel = kernel_list[krnd]
+            try:
+                image[yj - r:yj + r + 1, xi - r:xi + r + 1] = image[yj - r:yj + r + 1, xi - r:xi + r + 1]*(kernel == 0) + kernel*k
+            except:
+                print('k', k)
+                print('yj, xi', yj, xi)
+            k +=1
+
+
+        # # Evenly spaced cells with random jitter
+        # for i in range(1, row_size + 1):
+        #     for j in range(1, row_size + 1):
+        #         xi = (args.spacer )*i
+        #         # xi = (2*args.spacer + 1)*i - args.spacer
+        #         yj = (args.spacer)*j
+        #         # yj = (2*args.spacer + 1)*j - args.spacer
+        #         krnd = random.randint(0, len(theta_list)-1)
+        #         kernel = kernel_list[krnd]
+        #         # print('k',k)
+        #         # print('yjr - r, yjr + r + 1, xir - r, xir + r + 1',yjr - r, yjr + r + 1, xir - r, xir + r + 1)
+        #         # loop = 'T'
+        #         shift_length = args.spacer - args.half_cell_length
+        #         # while loop == 'T':
+        #         xrnd = random.randint(-shift_length,shift_length)
+        #         yrnd = random.randint(-shift_length,shift_length)
+        #         xir = xi + xrnd
+        #         yjr = yj + yrnd
+        #         try:
+        #             image[yjr - r:yjr + r + 1, xir - r:xir + r + 1] = image[yjr - r:yjr + r + 1, xir - r:xir + r + 1]*(kernel == 0) + kernel*k
+        #         except:
+        #             print('k', k)
+        #             print('j, i', j, i)
+        #             print('yjr, xir', yjr, xir)
+        #             # try:
+        #             #     image[yjr - r:yjr + r + 1, xir - r:xir + r + 1] = image[yjr - r:yjr + r + 1, xir - r:xir + r + 1]*(kernel == 0) + kernel*k
+        #             #     loop == 'F'
+        #             # except:
+        #             #     print('redo shift')
+        #         # cell_id = random.randint(1, args.num_taxa)
+        #         # for xr in np.arange(xi - r, xi + r + 1):
+        #         #     for yr in np.arange(yj - r, yj + r + 1):
+        #         #         if (xi - xr)**2 + (yj - yr)**2 <= r**2:
+        #         #             image[yr,xr] = k
+        #         k += 1
+
+        image_rgb = color.label2rgb(image, bg_label=0, bg_color=(0,0,0))
+        plt.imshow(image_rgb)
+        if args.save == 'T':
+            output_numpy_filename = '{}/image_{}{}'.format(args.output_folder, simulation_number, args.output_extension)
+            np.save(output_numpy_filename, image)
+            png_extension = re.sub('.npy','.png',args.output_extension)
+            output_png_filename = '{}/image_{}{}'.format(args.output_folder, simulation_number, png_extension)
+            plt.savefig(output_png_filename)
+        else:
+            plt.show()
+        plt.close()
 
 
 if __name__ == '__main__':
     main()
 
-javabridge.kill_vm()
+# javabridge.kill_vm()
