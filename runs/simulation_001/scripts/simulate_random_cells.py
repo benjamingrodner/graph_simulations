@@ -8,6 +8,7 @@ import random
 import argparse
 from math import pi
 import re
+import pandas as pd
 
 # javabridge.start_vm(class_path=bioformats.JARS)
 
@@ -110,7 +111,8 @@ def main():
     parser.add_argument('-sp', '--spacer', dest = 'spacer', type=int, default= 200, help='Output filename containing plots')
     parser.add_argument('-s', '--save', dest = 'save', type=str, default= 'T', help='Output filename containing plots')
     parser.add_argument('-of', '--output_folder', dest = 'output_folder', type=str, default= 'T', help='Output filename containing plots')
-    parser.add_argument('-oext', '--output_extension', dest = 'output_extension', type=str, help='Output filename containing plots')
+    parser.add_argument('-sext', '--seg_extension', dest = 'seg_extension', type=str, help='Output filename containing plots')
+    parser.add_argument('-cpext', '--cell_props_extension', dest = 'cell_props_extension', type=str, help='Output filename containing plots')
 
     args = parser.parse_args()
 
@@ -139,6 +141,7 @@ def main():
         k = 1
         print('image.shape',image.shape)
         # Randomly placed cells
+        cell_properties = pd.DataFrame()
         for c in range(args.num_cells):
             xi = random.randint(r ,dimension - r - 1)
             yj = random.randint(r, dimension - r - 1)
@@ -149,6 +152,7 @@ def main():
             except:
                 print('k', k)
                 print('yj, xi', yj, xi)
+            cell_properties = cell_properties.append({'id':k, 'theta':theta_list[krnd], 'x':xi, 'y':yj}, ignore_index = True)
             k +=1
 
 
@@ -187,15 +191,20 @@ def main():
         #         #         if (xi - xr)**2 + (yj - yr)**2 <= r**2:
         #         #             image[yr,xr] = k
         #         k += 1
-
+        # Show graph on image
+        fig = plt.figure()
+        fig.set_size_inches(20,20)
+        ax = fig.add_subplot(111)
         image_rgb = color.label2rgb(image, bg_label=0, bg_color=(0,0,0))
-        plt.imshow(image_rgb)
+        ax.imshow(image_rgb)
         if args.save == 'T':
-            output_numpy_filename = seg_name + args.output_extension
+            output_numpy_filename = seg_name + args.seg_extension
             np.save(output_numpy_filename, image)
-            png_extension = re.sub('.npy','.png',args.output_extension)
+            png_extension = re.sub('.npy','.png',args.seg_extension)
             output_png_filename = seg_name + png_extension
             plt.savefig(output_png_filename, bbox_inches = 'tight', transparent = True)
+            cell_properties_filename = seg_name + args.cell_props_extension
+            cell_properties.to_csv(cell_properties_filename)
         else:
             plt.show()
         plt.close()
