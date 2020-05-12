@@ -94,27 +94,6 @@ def get_rod_kernels(half_cell_length, half_cell_width, theta_list):
         kernel_list.append(kernel)
     return(kernel_list)
 
-def plot_seg(seg, rgb, colors, save, output_filename):
-    fig = plt.figure()
-    fig.set_size_inches(20,20)
-    ax = fig.add_subplot(111)
-    if rgb == 'T':
-        if colors == 'all':
-            seg_rgb = color.label2rgb(seg, bg_label=0, bg_color=(0,0,0))
-        else:
-            seg_rgb = color.label2rgb(seg, colors = colors, bg_label=0, bg_color=(0,0,0))
-        ax.imshow(seg_rgb)
-    else:
-        im = ax.imshow(seg, cmap=colors)
-        pos = ax.get_position().bounds
-        cax = fig.add_axes([pos[0] - 0.02, pos[1], 0.2, 0.02])
-        cbar = fig.colorbar(im, cax=cax, ticks=[-pi, 0, pi], orientation='vertical')
-        cbar.ax.set_xticklabels(['-pi', '0', 'pi'])
-    if args.save == 'T':
-        plt.savefig(output_png_filename, bbox_inches = 'tight', transparent = True)
-    else:
-        plt.show()
-    plt.close()
 
 
 
@@ -126,7 +105,8 @@ def main():
     # parser.add_argument('-ns', '--num_simulations', dest = 'num_simulations', type=int, default=1, help='Output filename containing plots')
     parser.add_argument('seg_names', type=str, nargs = '+', help='Output filename containing plots')
     parser.add_argument('-nc', '--num_cells', dest = 'num_cells', type=int, default=200, help='Output filename containing plots')
-    parser.add_argument('-nob', '--num_orientation_bins', dest = 'num_orientation_bins', type=int, default=2, help='Output filename containing plots')
+    parser.add_argument('-nol', '--num_orientation_layers', dest = 'num_orientation_layers', type=int, default=2, help='Output filename containing plots')
+    parser.add_argument('-td', '--theta_difference', dest = 'theta_difference', type=float, default=pi/4, help='Output filename containing plots')
     # parser.add_argument('-cr', '--cell_radius', dest = 'cell_radius', type=int, default=50, help='Output filename containing plots')
     parser.add_argument('-cl', '--half_cell_length', dest = 'half_cell_length', type=int, default=100, help='Output filename containing plots')
     parser.add_argument('-cw', '--half_cell_width', dest = 'half_cell_width', type=int, default=40, help='Output filename containing plots')
@@ -134,8 +114,6 @@ def main():
     parser.add_argument('-s', '--save', dest = 'save', type=str, default= 'T', help='Output filename containing plots')
     # parser.add_argument('-of', '--output_folder', dest = 'output_folder', type=str, default= 'T', help='Output filename containing plots')
     parser.add_argument('-sext', '--seg_extension', dest = 'seg_extension', type=str, help='Output filename containing plots')
-    parser.add_argument('-sthext', '--seg_theta_extension', dest = 'seg_theta_extension', type=str, help='Output filename containing plots')
-    parser.add_argument('-thcm', '--theta_cmap', dest = 'theta_cmap', type=str, help='Output filename containing plots')
     parser.add_argument('-cpext', '--cell_props_extension', dest = 'cell_props_extension', type=str, help='Output filename containing plots')
 
     args = parser.parse_args()
@@ -149,8 +127,13 @@ def main():
         image = np.zeros(image_dimensions)
 
         # Rods
-        # Input theta values in range [-pi/2, pi/2]
-        theta_list = np.arange(-pi/2, pi/2, pi/args.num_orientation_bins)
+        # Input theta values for each layer, each layer adds theta_difference radians to the previous
+        theta_list = [-pi/2]
+        for t in range(args.num_layers - 1):
+            theta_list.append(theta_list[t] + args.theta_difference)
+        # Create bins for each layer
+        layer_bins = np.linspace(0,dimension,args.num_layers + 1)
+        # theta_list = np.arange(-pi/2, pi/2, pi/8)
         kernel_list = get_rod_kernels(args.half_cell_length, args.half_cell_width, theta_list)
         # # Circles
         # r = args.cell_radius
@@ -170,15 +153,15 @@ def main():
         for c in range(args.num_cells):
             xi = random.randint(r ,dimension - r - 1)
             yj = random.randint(r, dimension - r - 1)
-            krnd = random.randint(0, len(theta_list)-1)
-            kernel = kernel_list[krnd]
+            theta_index = int(np.digitize(yj, layer_bins)) - 1
+            kernel = kernel_list[theta_index]
             try:
                 image[yj - r:yj + r + 1, xi - r:xi + r + 1] = image[yj - r:yj + r + 1, xi - r:xi + r + 1]*(kernel == 0) + kernel*k
             except:
                 print('k', k)
                 print('yj, xi', yj, xi)
-            map_dict_theta[k] = theta_list[krnd]
-            cell_properties = cell_properties.append({'id':k, 'theta':theta_list[krnd], 'x':xi, 'y':yj}, ignore_index = True)
+            map_dict_theta[k] = theta_list[theta_index]
+            cell_properties = cell_properties.append({'id':k, 'theta':theta_list[theta_index], 'x':xi, 'y':yj}, ignore_index = True)
             k +=1
 
 
@@ -217,7 +200,7 @@ def main():
         #         #         if (xi - xr)**2 + (yj - yr)**2 <= r**2:
         #         #             image[yr,xr] = k
         #         k += 1
-        # Show seg
+        # Show graph on image
         fig = plt.figure()
         fig.set_size_inches(20,20)
         ax = fig.add_subplot(111)
@@ -235,17 +218,12 @@ def main():
             plt.show()
         plt.close()
 
-
         # Generate theta seg
         seg_theta = copy(image)
         for k, v in map_dict_theta.iteritems(): seg_theta[seg==k] = v
-        if args.save == 'T':
-            seg_theta_filename = seg_name + args.seg_extension
-            np.save(seg_theta_filename, seg_theta)
         # Plot theta seg
-        seg_png_extension = re.sub('.npy','.png',args.seg_extension)
-        seg_theta_png_filename = seg_name + seg_theta_png_filename
-        plot_seg(seg_theta, rgb='F', args.theta_cmap, args.save, seg_theta_png_filename)
+        seg_theta_filename = seg_name + args.seg_theta_extension
+        plot_seg(seg_theta, rgb='F', args.theta_cmap, args.save, seg_theta_filename)
 
 
 
