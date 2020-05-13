@@ -2,6 +2,7 @@ import numpy as np
 import os
 from skimage import color
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 # import javabridge
 # import bioformats
 import random
@@ -94,27 +95,68 @@ def get_rod_kernels(half_cell_length, half_cell_width, theta_list):
         kernel_list.append(kernel)
     return(kernel_list)
 
-def plot_seg(seg, rgb, colors, save, output_filename):
+
+def plot_seg(seg, colors, colormap, type, num_discrete_values, save, output_png_filename):
+    plt.rcParams["text.color"] = 'w'
+    plt.rcParams["axes.labelcolor"] = 'w'
+    plt.rcParams["xtick.color"] =  'w'
+    plt.rcParams["ytick.color"] = 'w'
     fig = plt.figure()
-    fig.set_size_inches(20,20)
+    fig.set_size_inches(10,10)
     ax = fig.add_subplot(111)
-    if rgb == 'T':
-        if colors == 'all':
-            seg_rgb = color.label2rgb(seg, bg_label=0, bg_color=(0,0,0))
-        else:
-            seg_rgb = color.label2rgb(seg, colors = colors, bg_label=0, bg_color=(0,0,0))
+    s = 30
+    if type == 'label':
+        seg_rgb = color.label2rgb(seg, colors = colormap, bg_label=0, bg_color=(0,0,0))
         ax.imshow(seg_rgb)
-    else:
-        im = ax.imshow(seg, cmap=colors)
+    elif type == 'discrete':
+        im = ax.imshow(seg, cmap = colormap)
         pos = ax.get_position().bounds
-        cax = fig.add_axes([pos[0] - 0.02, pos[1], 0.2, 0.02])
-        cbar = fig.colorbar(im, cax=cax, ticks=[-pi, 0, pi], orientation='vertical')
-        cbar.ax.set_xticklabels(['-pi', '0', 'pi'])
-    if args.save == 'T':
+        cax = fig.add_axes([pos[0] + pos[2] + 0.02, pos[1], 0.02, pos[3]])
+        cbar = fig.colorbar(im, cax=cax, ticks=colors, boundaries = np.arange(1, num_discrete_values + 2) - 0.5, orientation='vertical')
+        ax.imshow(seg_rgb)
+    elif type == 'theta':
+        im = ax.imshow(seg, cmap=colormap, clim = (-pi/2,pi/2))
+        # im = ax.imshow(seg, cmap=colors, clim = (-pi/2,pi/2))
+        pos = ax.get_position().bounds
+        cax = fig.add_axes([pos[0] + pos[2] + 0.02, pos[1], 0.02, pos[3]])
+        cbar = fig.colorbar(im, cax=cax, ticks=[-pi/2, 0, pi/2], orientation='vertical')
+        cbar.ax.set_yticklabels(['-pi/2', '0', 'pi/2'])
+    elif type == 'continuous':
+        im = ax.imshow(seg, cmap=colormap)
+        # im = ax.imshow(seg, cmap=colors, clim = (-pi/2,pi/2))
+        # plt.gca().set_aspect('equal', 'datalim')
+        pos = ax.get_position().bounds
+        cax = fig.add_axes([pos[0] + pos[2] + 0.02, pos[1], 0.02, pos[3]])
+        cbar = fig.colorbar(im, cax=cax, orientation='vertical')
+    if save == 'T':
         plt.savefig(output_png_filename, bbox_inches = 'tight', transparent = True)
     else:
         plt.show()
     plt.close()
+
+# def plot_seg(seg, rgb, colors, save, output_png_filename):
+#     colors, colormap, type, num_discrete_values, save, output_png_filename
+#     plt.rcParams["axes.labelcolor"] = 'w'
+#     fig = plt.figure()
+#     fig.set_size_inches(20,20)
+#     ax = fig.add_subplot(111)
+#     if rgb == 'T':
+#         if isinstance(colors, str):
+#             seg_rgb = color.label2rgb(seg, bg_label=0, bg_color=(0,0,0))
+#         else:
+#             seg_rgb = color.label2rgb(seg, colors = colors, bg_label=0, bg_color=(0,0,0))
+#         ax.imshow(seg_rgb)
+#     else:
+#         im = ax.imshow(seg, cmap=colors, clim = (-pi/2,pi/2))
+#         pos = ax.get_position().bounds
+#         cax = fig.add_axes([pos[0] + pos[2] + 0.02, pos[1], 0.02, pos[3]])
+#         cbar = fig.colorbar(im, cax=cax, ticks=[-pi/2, 0, pi/2], orientation='vertical')
+#         cbar.ax.set_yticklabels(['-pi/2', '0', 'pi/2'])
+#     if save == 'T':
+#         plt.savefig(output_png_filename, bbox_inches = 'tight', transparent = True)
+#     else:
+#         plt.show()
+#     plt.close()
 
 
 
@@ -127,6 +169,7 @@ def main():
     parser.add_argument('seg_names', type=str, nargs = '+', help='Output filename containing plots')
     parser.add_argument('-nc', '--num_cells', dest = 'num_cells', type=int, default=200, help='Output filename containing plots')
     parser.add_argument('-nob', '--num_orientation_bins', dest = 'num_orientation_bins', type=int, default=2, help='Output filename containing plots')
+    parser.add_argument('-td', '--theta_difference', dest = 'theta_difference', type=float, default=pi/4, help='Output filename containing plots')
     # parser.add_argument('-cr', '--cell_radius', dest = 'cell_radius', type=int, default=50, help='Output filename containing plots')
     parser.add_argument('-cl', '--half_cell_length', dest = 'half_cell_length', type=int, default=100, help='Output filename containing plots')
     parser.add_argument('-cw', '--half_cell_width', dest = 'half_cell_width', type=int, default=40, help='Output filename containing plots')
@@ -134,6 +177,7 @@ def main():
     parser.add_argument('-s', '--save', dest = 'save', type=str, default= 'T', help='Output filename containing plots')
     # parser.add_argument('-of', '--output_folder', dest = 'output_folder', type=str, default= 'T', help='Output filename containing plots')
     parser.add_argument('-sext', '--seg_extension', dest = 'seg_extension', type=str, help='Output filename containing plots')
+    parser.add_argument('-scm', '--seg_cmap', dest = 'seg_cmap', default = 'plasma', type=str, help='Output filename containing plots')
     parser.add_argument('-sthext', '--seg_theta_extension', dest = 'seg_theta_extension', type=str, help='Output filename containing plots')
     parser.add_argument('-thcm', '--theta_cmap', dest = 'theta_cmap', type=str, help='Output filename containing plots')
     parser.add_argument('-cpext', '--cell_props_extension', dest = 'cell_props_extension', type=str, help='Output filename containing plots')
@@ -150,7 +194,10 @@ def main():
 
         # Rods
         # Input theta values in range [-pi/2, pi/2]
-        theta_list = np.arange(-pi/2, pi/2, pi/args.num_orientation_bins)
+        theta_list = [-pi/2]
+        for t in range(args.num_orientation_bins - 1):
+            theta_list.append(theta_list[t] + args.theta_difference)
+        # theta_list = np.arange(-pi/2, pi/2, pi/args.num_orientation_bins)
         kernel_list = get_rod_kernels(args.half_cell_length, args.half_cell_width, theta_list)
         # # Circles
         # r = args.cell_radius
@@ -217,35 +264,45 @@ def main():
         #         #         if (xi - xr)**2 + (yj - yr)**2 <= r**2:
         #         #             image[yr,xr] = k
         #         k += 1
-        # Show seg
-        fig = plt.figure()
-        fig.set_size_inches(20,20)
-        ax = fig.add_subplot(111)
-        image_rgb = color.label2rgb(image, bg_label=0, bg_color=(0,0,0))
-        ax.imshow(image_rgb)
+
+        # Generate theta seg
+        seg_theta = image.copy().astype(float)
+        seg_theta[seg_theta == 0] = np.nan
+        for k, v in map_dict_theta.items(): seg_theta[image==k] = v
+
+        # fig = plt.figure()
+        # fig.set_size_inches(20,20)
+        # ax = fig.add_subplot(111)
+        # image_rgb = color.label2rgb(image, bg_label=0, bg_color=(0,0,0))
+        # ax.imshow(image_rgb)
         if args.save == 'T':
             output_numpy_filename = seg_name + args.seg_extension
             np.save(output_numpy_filename, image)
-            png_extension = re.sub('.npy','.png',args.seg_extension)
-            output_png_filename = seg_name + png_extension
-            plt.savefig(output_png_filename, bbox_inches = 'tight', transparent = True)
+            # png_extension = re.sub('.npy','.png',args.seg_extension)
+            # output_png_filename = seg_name + png_extension
+            # plt.savefig(output_png_filename, bbox_inches = 'tight', transparent = True)
             cell_properties_filename = seg_name + args.cell_props_extension
             cell_properties.to_csv(cell_properties_filename)
-        else:
-            plt.show()
-        plt.close()
-
-
-        # Generate theta seg
-        seg_theta = copy(image)
-        for k, v in map_dict_theta.iteritems(): seg_theta[seg==k] = v
-        if args.save == 'T':
-            seg_theta_filename = seg_name + args.seg_extension
+            seg_theta_filename = seg_name + args.seg_theta_extension
             np.save(seg_theta_filename, seg_theta)
+
+        # Show seg
+        png_extension = re.sub('.npy','.png',args.seg_extension)
+        output_png_filename = seg_name + png_extension
+        seg_cmap = plt.cm.get_cmap(args.seg_cmap, args.num_cells)
+        seg_colors = seg_cmap(np.linspace(0, 1, args.num_cells))
+        plot_seg(image, 'F', seg_colors, 'label', 'F', args.save, output_png_filename)
+
         # Plot theta seg
-        seg_png_extension = re.sub('.npy','.png',args.seg_extension)
-        seg_theta_png_filename = seg_name + seg_theta_png_filename
-        plot_seg(seg_theta, rgb='F', args.theta_cmap, args.save, seg_theta_png_filename)
+        theta_cmap = plt.cm.get_cmap(args.theta_cmap)
+        theta_cmap.set_bad(color='black')
+        # theta_colors = cmap(np.linspace(0, 1, 256))
+        # theta_colors[0] = np.array([0,0,0,1])
+        # theta_cmap = ListedColormap(theta_colors)
+        seg_theta_png_extension = re.sub('.npy','.png',args.seg_theta_extension)
+        seg_theta_png_filename = seg_name + seg_theta_png_extension
+        thetas = cell_properties.loc[:,'theta'].values
+        plot_seg(seg_theta, thetas, theta_cmap, 'theta', 'F', args.save, seg_theta_png_filename)
 
 
 

@@ -10,8 +10,9 @@ from skimage.segmentation import find_boundaries
 # Functions
 ##################################################################################
 
-def build_adjacency_matrix(cell_properties, r):
+def build_adjacency_matrix(cell_properties, r, min_edges):
     # Create an adjacency matrix with weighted edges
+    increase = int(r/4)
     adjacency_matrix = np.zeros([cell_properties.shape[0]]*2)
     for index, row in cell_properties.iterrows():
         id, xc, yc = row[['id','x','y']]
@@ -31,10 +32,10 @@ def build_adjacency_matrix(cell_properties, r):
                 cell_properties_filtered = cell_properties[bool_x0 & bool_x1 & bool_y0 & bool_y1 & bool_c].copy()
                 cell_properties_filtered['dist'] = ((cell_properties_filtered.x - xc)**2 + (cell_properties_filtered.y - yc)**2)**(1/2)
                 cell_properties_filtered_circle = cell_properties_filtered[cell_properties_filtered.dist <= r].copy()
-                if cell_properties_filtered_circle.shape[0] > 0:
+                if cell_properties_filtered_circle.shape[0] >= min_edges:
                     widen_circle = False
                 else:
-                    r += 50
+                    r += increase
             # Assign weighted edges for each cell within radius r
             for index_edge, row_edge in cell_properties_filtered_circle.iterrows():
                 id_edge, dist = row_edge[['id','dist']]
@@ -57,6 +58,7 @@ def main():
     # parser.add_argument('-cw', '--half_cell_width', dest = 'half_cell_width', type=int, default=40, help='Output filename containing plots')
     # parser.add_argument('-sp', '--spacer', dest = 'spacer', type=int, default= 200, help='Output filename containing plots')
     parser.add_argument('-r', '--radius', dest = 'radius', type=int, default = 500, help='Output filename containing plots')
+    parser.add_argument('-me', '--min_edges', dest = 'min_edges', type=int, default = 1, help='Output filename containing plots')
     # parser.add_argument('-gcm', '--graph_cmap', dest = 'graph_cmap', type=str, default = 'inferno', help='Output filename containing plots')
     # parser.add_argument('-ccm', '--cell_cmap', dest = 'cell_cmap', type=str, default = 'Blues', help='Output filename containing plots')
     # parser.add_argument('-vs', '--vertex_size', dest = 'vertex_size', type=int, default = 2, help='Output filename containing plots')
@@ -77,7 +79,7 @@ def main():
         cell_properties = pd.read_csv(cell_properties_filename)
         cell_properties.sort_values('id', inplace = True)
         # Create an adjacency matrix with weighted edges
-        adjacency_matrix = build_adjacency_matrix(cell_properties, r)
+        adjacency_matrix = build_adjacency_matrix(cell_properties, r, args.min_edges)
         # adjacency_matrix = np.zeros([cell_properties.shape[0]]*2)
         # for index, row in cell_properties.iterrows():
         #     id, xc, yc = row[['id','x','y']]

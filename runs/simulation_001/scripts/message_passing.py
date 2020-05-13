@@ -22,7 +22,7 @@ def main():
     parser = argparse.ArgumentParser('Digital filter using two color colocalization.')
     parser.add_argument('seg_names', type=str, nargs = '+', help='Output filename containing plots')
     parser.add_argument('-nm', '--num_messages', dest = 'num_messages', type=int, default=2, help='Output filename containing plots')
-    parser.add_argument('-cdw', '--cap_distance_weighting', dest = 'cdw', type=str, default=40, help='Output filename containing plots')
+    parser.add_argument('-cdw', '--cap_distance_weighting', dest = 'cap_distance_weighting', type=str, default=40, help='Output filename containing plots')
     parser.add_argument('-nt', '--num_taxa', dest = 'num_taxa', type=int, default=2, help='Output filename containing plots')
     parser.add_argument('-nob', '--num_orientation_bins', dest = 'num_orientation_bins', type=int, default=2, help='Output filename containing plots')
     # parser.add_argument('-nc', '--num_cells', dest = 'num_cells', type=int, default=200, help='Output filename containing plots')
@@ -49,22 +49,23 @@ def main():
         # seg_name_taxa = seg_name + args.taxa_sub_extension
         cell_features_filename = seg_name + args.cell_features_extension
         cell_features = np.load(cell_features_filename)
-        cell_features_messaged = copy(cell_features)
+        cell_features_messaged = np.zeros([cell_features.shape[0],1])
+        # cell_features_messaged = cell_features.copy()
         adjacency_matrix_filename = seg_name + args.graph_extension
         adjacency_matrix = np.load(adjacency_matrix_filename)
         # Weight distances such that shorter distances are more important
         # all weights in (0,1]
         if not args.cap_distance_weighting == 'none':
             # Weight edges equally when they are closer than a certain distance
-            cap_distance_weighting = args.cap_distance_weighting
-            adjacency_matrix_remapped = copy(adjacency_matrix)
+            cap_distance_weighting = float(args.cap_distance_weighting)
+            adjacency_matrix_remapped = adjacency_matrix.copy()
             adjacency_matrix_remapped[adjacency_matrix_remapped > cap_distance_weighting] == cap_distance_weighting
-            adjacency_matrix_remapped = cap_distance_weighting * adjacency_matrix_remapped**-1
+            adjacency_matrix_remapped = cap_distance_weighting * np.power(adjacency_matrix_remapped, -1, where = adjacency_matrix_remapped != 0)
         else:
             dist_min = np.min(adjacency_matrix)
-            adjacency_matrix_remapped = dist_min * adjacency_matrix**-1
+            adjacency_matrix_remapped = dist_min * np.power(adjacency_matrix_remapped, -1, where = adjacency_matrix_remapped != 0)
         # How many message iterations
-        message_array_previous = copy(cell_features)
+        message_array_previous = cell_features.copy()
         for m in range(args.num_messages):
             message_array_new = np.zeros(cell_features.shape)
             for cell in range(cell_features.shape[0]):
@@ -85,6 +86,12 @@ def main():
                     edges_message_theta_shift = np.roll(edges_message_theta, -theta_shift, axis = 1)
                     # Recombine the feature values
                     edges_message = np.concatenate((edges_message_taxa, edges_message_theta_shift), axis = 1)
+                    # if cell in list(range(3)):
+                    #     print('theta_cell',theta_cell)
+                    #     print('theta_shift',theta_shift)
+                    #     print('edges_message_theta\n',edges_message_theta[0:3,:])
+                    #     print('edges_message_theta_shift\n', edges_message_theta_shift[0:3,:])
+                    #     print('edges_message\n', edges_message[0:3,:])
                 else:
                     edges_message = message_array_previous[edges_id_list, :]
                 # Weight the edges by distance

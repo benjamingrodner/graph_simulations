@@ -10,13 +10,18 @@ from skimage.segmentation import find_boundaries
 # Functions
 ##################################################################################
 
-def plot_graph_on_seg(cell_cmap, seg, graph_cmap, adjacency_matrix, cell_properties, edge_width, vertex_color, vertex_size, graph_on_seg_extension, save):
+def plot_graph_on_seg(cell_cmap, seg, graph_cmap, adjacency_matrix, cell_properties, edge_width, vertex_color, vertex_size, graph_on_seg_output_filename, save):
+    plt.rcParams["font.size"] = 20
+    plt.rcParams["text.color"] = 'w'
+    plt.rcParams["xtick.color"] =  'w'
+    plt.rcParams["ytick.color"] = 'w'
     fig = plt.figure()
     fig.set_size_inches(20,20)
     ax = fig.add_subplot(111)
     # Show Seg
     cmc = plt.cm.get_cmap(cell_cmap)
     clrs = cmc(range(20,230))
+    # seg_color = color.label2rgb(seg, colors = [(0.8,0.8,0.8)], bg_label=0, bg_color=(0,0,0))
     seg_color = color.label2rgb(seg, colors = clrs, bg_label=0, bg_color=(0,0,0))
     ax.imshow(seg_color)
     # ax.imshow(seg, cmap = 'Reds', clim = (0, adjacency_matrix.shape[0] + 20))
@@ -43,8 +48,18 @@ def plot_graph_on_seg(cell_cmap, seg, graph_cmap, adjacency_matrix, cell_propert
                 # print('x,y,clr,args.edge_width)',x,y,clr,args.edge_width)
                 ax.plot(x, y, c = clr, lw = edge_width)
                 ax.plot(x0,y0, c = vertex_color, marker = '.', ms = vertex_size)
+    pos = ax.get_position().bounds
+    gradient = np.linspace(np.min(adjacency_matrix), np.max(adjacency_matrix), 256)[np.newaxis].T
+    gradient = np.hstack([gradient, gradient])
+    cax = fig.add_axes([pos[0] + pos[2] + 0.02, pos[1], 0.02, pos[3]])
+    cax.imshow(gradient, cmap = graph_cmap + '_r')
+    cax.set_xticks([])
+    cax.set_ylabel('Distance (pixels)', rotation = -90, color= 'w', x=2)
+    cax.yaxis.tick_right()
+    # cbar = fig.colorbar(cax=cax, boundaries = , orientation='vertical')
+
     if save == 'T':
-        graph_on_seg_output_filename = seg_name + graph_on_seg_extension
+        # graph_on_seg_output_filename = seg_name + graph_on_seg_extension
         plt.savefig(graph_on_seg_output_filename, bbox_inches = 'tight', transparent = True)
     else:
         plt.show()
@@ -86,8 +101,9 @@ def main():
         # load adjacency matrix
         adjacency_matrix_filename = seg_name + args.graph_extension
         adjacency_matrix = np.load(adjacency_matrix_filename)
+        graph_on_seg_output_filename = seg_name + args.graph_on_seg_extension
         plot_graph_on_seg(args.cell_cmap, seg, args.graph_cmap, adjacency_matrix, cell_properties, args.edge_width,
-                            args.vertex_color, args.vertex_size, args.graph_on_seg_extension, args.save):
+                            args.vertex_color, args.vertex_size, graph_on_seg_output_filename, args.save)
 
         # Show graph on image
         # fig = plt.figure()
