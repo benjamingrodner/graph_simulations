@@ -124,7 +124,7 @@ for node in graph.nodes:
 
 
 # cluster nodes in model
-n_clusters = 3
+n_clusters = 6
 cluster_labels = KMeans(n_clusters=n_clusters, random_state=0).fit_predict(node_array)
 cluster_names = np.unique(cluster_labels)
 cluster_labels = cluster_labels + 1-cluster_names[0]
@@ -147,8 +147,8 @@ cax = fig.add_axes([pos[0] + pos[2] + 0.02, pos[1], 0.02, pos[3]])
 num_clusters = cluster_names.shape[0]
 boundaries = np.arange(1, num_clusters + 2) - 0.5
 cbar = fig.colorbar(nodes, cax=cax, ticks=cluster_labels, boundaries = boundaries, orientation='vertical')
-# plt.savefig('{}/{}'.format(sim_dir, 'graph_q_2.png'))
-plt.show()
+plt.savefig('{}/{}'.format(sim_dir, 'graph_q_0.5.png'))
+# plt.show()
 plt.close()
 
 # UMAP reduction
